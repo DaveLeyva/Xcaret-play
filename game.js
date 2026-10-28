@@ -436,7 +436,7 @@
   const assetList = [
     { key: 'bg', src: 'assets/Background.png', fallback: 'Background.png' },
     { key: 'enemy', src: 'assets/Enemy.png', fallback: 'Enemy.png' },
-    { key: 'fruit', src: 'assets/fruit.png', fallback: 'Fruit.png' },
+    { key: 'fruit', src: 'assets/fruit.png', fallback: 'fruit.png' },
     { key: 'guacamayaLeft', src: 'assets/Guacamaya_Left.png', fallback: 'Guacamaya_Left.png' },
     { key: 'guacamayaRight', src: 'assets/Guacamaya_Right.png', fallback: 'Guacamaya_Right.png' },
     { key: 'headCounter', src: 'assets/Head and Counter.png', fallback: 'Head and Counter.png' },
