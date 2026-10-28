@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#09170e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Xcaret Battles">
+  <title>Xcaret Battles - Vuelo de la Guacamaya</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="arcade-wrapper">
+    <div class="canvas-container" id="canvas-container">
+      <canvas id="gameCanvas" width="1280" height="720"></canvas>
+      
+      <!-- Preloader para compatibilidad en cualquier navegador -->
+      <div id="asset-cache" style="display:none;" aria-hidden="true">
+        <img id="img-bg" src="assets/Background.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Background.png';}" alt="Background">
+        <img id="img-enemy" src="assets/Enemy.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Enemy.png';}" alt="Enemy">
+        <img id="img-fruit" src="assets/fruit.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Fruit.png';}" alt="Fruit">
+        <img id="img-guacamaya-left" src="assets/Guacamaya_Left.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Guacamaya_Left.png';}" alt="Guacamaya Left">
+        <img id="img-guacamaya-right" src="assets/Guacamaya_Right.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Guacamaya_Right.png';}" alt="Guacamaya Right">
+        <img id="img-head-counter" src="assets/Head and Counter.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Head and Counter.png';}" alt="Head and Counter">
+        <img id="img-gameover" src="assets/GameOver.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='GameOver.png';}" alt="Game Over">
+        <img id="img-retry" src="assets/Reintentar.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Reintentar.png';}" alt="Reintentar">
+        <img id="img-ventana" src="assets/Ventana.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Ventana.png';}" alt="Ventana">
+        <img id="img-winner" src="assets/Winner.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Winner.png';}" alt="Winner">
+        <img id="img-pres" src="assets/Pres.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Pres.png';}" alt="Presentation">
+        <img id="img-press-start" src="assets/Press Start.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Press Start.png';}" alt="Press Start">
+        <img id="img-seed" src="assets/Seed.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Seed.png';}" alt="Seed">
+        <audio id="audio-intro" src="assets/SongIntro.mp3" loop preload="auto" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='SongIntro.mp3';}"></audio>
+        <audio id="audio-bgm" src="assets/Song.mp3" loop preload="auto" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='Song.mp3';}"></audio>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
