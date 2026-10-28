@@ -450,36 +450,49 @@
   ];
 
   let loadedAssets = 0;
+  // Rutas a probar para cada imagen: assets/, carpeta principal y también la variante
+  // con la primera letra en mayúscula/minúscula (GitHub y otros servidores distinguen
+  // mayúsculas; macOS no).
+  function assetCandidates(item) {
+    const flip = path => path.replace(/[^\/]*$/, name =>
+      name.charAt(0) === name.charAt(0).toUpperCase()
+        ? name.charAt(0).toLowerCase() + name.slice(1)
+        : name.charAt(0).toUpperCase() + name.slice(1));
+    const list = [item.src, item.fallback, flip(item.src), flip(item.fallback)];
+    return list.filter((p, i) => p && list.indexOf(p) === i);
+  }
+
   function loadAssets(callback) {
     let finished = false;
     assetList.forEach(item => {
       const img = new Image();
-      let triedFallback = false;
+      const candidates = assetCandidates(item);
+      let attempt = 0;
 
-      img.onload = () => {
+      const done = () => {
         loadedAssets++;
-        assets[item.key] = img;
         if (loadedAssets === assetList.length && !finished) {
           finished = true;
           callback();
         }
       };
 
+      img.onload = () => {
+        assets[item.key] = img;
+        done();
+      };
+
       img.onerror = () => {
-        if (!triedFallback) {
-          triedFallback = true;
-          img.src = item.fallback;
+        attempt++;
+        if (attempt < candidates.length) {
+          img.src = candidates[attempt];
         } else {
           console.warn('No se pudo cargar:', item.src);
-          loadedAssets++;
-          if (loadedAssets === assetList.length && !finished) {
-            finished = true;
-            callback();
-          }
+          done();
         }
       };
 
-      img.src = item.src;
+      img.src = candidates[0];
     });
   }
 
