@@ -110,3 +110,26 @@ body {
     cursor: default;
   }
 }
+
+/* ===== MODO VERTICAL (celular en portrait): el juego llena toda la pantalla ===== */
+html.mode-portrait body {
+  display: block;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+html.mode-portrait .arcade-wrapper {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+html.mode-portrait .canvas-container {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
+

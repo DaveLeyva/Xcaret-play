@@ -1,5 +1,5 @@
 /**
- * XCARET BATTLES - SHOOT'EM UP VERTICAL (DESKTOP EDITION)
+ * XCARET BATTLES - SHOOT'EM UP VERTICAL (DESKTOP + MOBILE)
  * Protagonista: Guacamaya
  * Desarrollado con Canvas HTML5, Web Audio API & Audio Loop
  */
@@ -7,14 +7,47 @@
 (() => {
   'use strict';
 
-  // --- CONFIGURACIÓN Y ESTADO PRINCIPAL (TAMAÑO DESKTOP 16:9) ---
-  const CANVAS_WIDTH = 1280;
-  const CANVAS_HEIGHT = 720;
+  // --- CONFIGURACIÓN Y ESTADO PRINCIPAL ---
+  // Computadora / celular horizontal: lienzo 1280x720 (16:9).
+  // Celular en vertical: lienzo 600 de ancho y alto según la pantalla (llena todo el celular).
+  let CANVAS_WIDTH = 1280;
+  let CANVAS_HEIGHT = 720;
+  let IS_PORTRAIT = false;
+  const PORTRAIT_W = 600;
   const TARGET_FRUITS = 10;
 
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
   const container = document.getElementById('canvas-container');
+
+  // Detección automática: pantalla táctil + celular/tablet sostenido en vertical
+  const coarseQuery = window.matchMedia('(pointer: coarse)');
+
+  // Calcula el tamaño del lienzo. Devuelve true si cambió.
+  function computeLayout() {
+    const wantPortrait = coarseQuery.matches && window.innerHeight > window.innerWidth;
+    document.documentElement.classList.toggle('mode-portrait', wantPortrait);
+
+    let w = 1280;
+    let h = 720;
+    if (wantPortrait) {
+      const r = container.getBoundingClientRect();
+      const ratio = r.width > 0 ? r.height / r.width : 16 / 9;
+      w = PORTRAIT_W;
+      h = Math.max(900, Math.min(1500, Math.round(w * ratio)));
+      // Ignora cambios mínimos (la barra del navegador que aparece y se oculta)
+      if (IS_PORTRAIT && Math.abs(h - CANVAS_HEIGHT) / CANVAS_HEIGHT < 0.08) h = CANVAS_HEIGHT;
+    }
+
+    const changed = w !== CANVAS_WIDTH || h !== CANVAS_HEIGHT || wantPortrait !== IS_PORTRAIT;
+    IS_PORTRAIT = wantPortrait;
+    CANVAS_WIDTH = w;
+    CANVAS_HEIGHT = h;
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
+    return changed;
+  }
+  computeLayout();
 
   const STATES = {
     LOADING: 'LOADING',
@@ -653,7 +686,7 @@
   canvas.addEventListener('touchend', e => endTouch(e, false), { passive: false });
   canvas.addEventListener('touchcancel', e => endTouch(e, true), { passive: false });
 
-  // Pantalla completa + orientación horizontal (Android/Chrome). En iPhone Safari
+  // Pantalla completa (Android/Chrome). En iPhone Safari
   // no existe pantalla completa para páginas: se ajusta solo a toda la pantalla.
   function enterMobileFullscreen() {
     if (!isTouchDevice) return;
@@ -661,21 +694,27 @@
     const req = container.requestFullscreen || container.webkitRequestFullscreen;
     if (!req) return;
     try {
-      const lockLandscape = () => {
-        try { screen.orientation?.lock?.('landscape').catch(() => {}); } catch (e) {}
-      };
       const r = req.call(container, { navigationUI: 'hide' });
-      if (r && r.then) r.then(lockLandscape).catch(() => {});
-      else lockLandscape();
+      if (r && r.catch) r.catch(() => {});
     } catch (e) {}
   }
 
   // Área del botón Press Start (250x55 centrado, y = alto - 135) con margen
+  function pressStartBox() {
+    const k = IS_PORTRAIT ? Math.min(1.6, (CANVAS_WIDTH - 60) / 250) : 1;
+    const w = 250 * k;
+    const h = 55 * k;
+    return {
+      x: (CANVAS_WIDTH - w) / 2,
+      y: IS_PORTRAIT ? CANVAS_HEIGHT - 200 : CANVAS_HEIGHT - 135,
+      w, h
+    };
+  }
+
   function isOverPressStart(px = mouse.x, py = mouse.y, pad = 24) {
-    const x0 = (CANVAS_WIDTH - 250) / 2 - pad;
-    const y0 = CANVAS_HEIGHT - 135 - pad;
-    return px >= x0 && px <= x0 + 250 + pad * 2 &&
-           py >= y0 && py <= y0 + 55 + pad * 2;
+    const b = pressStartBox();
+    return px >= b.x - pad && px <= b.x + b.w + pad &&
+           py >= b.y - pad && py <= b.y + b.h + pad;
   }
 
   function handleActionButton(fromPointer = false) {
@@ -1263,11 +1302,11 @@
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     ctx.fillStyle = '#79f29d';
-    ctx.font = '20px "Press Start 2P", monospace';
+    ctx.font = `${IS_PORTRAIT ? 14 : 20}px "Press Start 2P", monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText('CARGANDO XCARET BATTLES...', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 25);
+    ctx.fillText(IS_PORTRAIT ? 'CARGANDO...' : 'CARGANDO XCARET BATTLES...', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 25);
 
-    const barW = 380;
+    const barW = IS_PORTRAIT ? 340 : 380;
     const barH = 18;
     const progress = loadedAssets / assetList.length;
 
@@ -1284,7 +1323,7 @@
       titleVideo.draw();
     } else if (assets.pres) {
       // Respaldo mientras carga el video (o si no existe)
-      ctx.drawImage(assets.pres, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      drawCover(assets.pres);
     }
 
     const grad = ctx.createLinearGradient(0, CANVAS_HEIGHT * 0.65, 0, CANVAS_HEIGHT);
@@ -1294,13 +1333,12 @@
     ctx.fillRect(0, CANVAS_HEIGHT * 0.65, CANVAS_WIDTH, CANVAS_HEIGHT * 0.35);
 
     if (assets.pressStart) {
-      const btnW = 250;
-      const btnH = 55;
+      const box = pressStartBox();
       const pulse = Math.sin(globalTime * 5) * 0.05;
-      const curW = btnW * (1 + pulse);
-      const curH = btnH * (1 + pulse);
+      const curW = box.w * (1 + pulse);
+      const curH = box.h * (1 + pulse);
       const btnX = (CANVAS_WIDTH - curW) / 2;
-      const btnY = CANVAS_HEIGHT - 135;
+      const btnY = box.y;
 
       ctx.save();
       ctx.shadowColor = '#4eaf72';
@@ -1427,7 +1465,56 @@
   }
 
   // --- MARCO SUPERIOR ACTUALIZADO: HEAD AND COUNTER ---
+  // Marcador para celular en vertical: dos paneles (el marco ancho no cabe)
+  function renderHudPortrait() {
+    const m = 14;
+    const y = m + 4;
+    const h = 58;
+    const lw = 250;
+    const rw = 200;
+    const panel = (x, w) => {
+      ctx.save();
+      ctx.fillStyle = 'rgba(12, 28, 18, 0.82)';
+      ctx.strokeStyle = 'rgba(121, 242, 157, 0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 14);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    };
+    panel(m, lw);
+    panel(CANVAS_WIDTH - m - rw, rw);
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000000';
+    ctx.shadowBlur = 4;
+
+    ctx.font = '13px "Press Start 2P", monospace';
+    ctx.fillStyle = '#ffea79';
+    ctx.fillText(`PTS ${score.toString().padStart(6, '0')}`, m + lw / 2, y + h / 2 + 6);
+
+    const cx = CANVAS_WIDTH - m - rw / 2;
+    ctx.font = '800 24px "Fredoka", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`🍉 ${fruitsCollected} / ${TARGET_FRUITS}`, cx, y + 31);
+
+    const pBarW = 120;
+    const progress = Math.min(1, fruitsCollected / TARGET_FRUITS);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(cx - pBarW / 2, y + 41, pBarW, 6);
+    ctx.fillStyle = progress >= 1 ? '#ffeb3b' : '#00e676';
+    ctx.fillRect(cx - pBarW / 2, y + 41, pBarW * progress, 6);
+    ctx.restore();
+  }
+
   function renderHeadAndCounter() {
+    if (IS_PORTRAIT) {
+      renderHudPortrait();
+      return;
+    }
     if (!assets.headCounter) return;
 
     ctx.save();
@@ -1481,6 +1568,23 @@
   }
 
   // --- PANTALLA GAMEOVER CON EL ELEMENTO ACTUALIZADO GameOver.png ---
+  // Rellena todo el canvas con la imagen (recorta lo que sobre, sin deformar)
+  function drawCover(img) {
+    const k = Math.max(CANVAS_WIDTH / img.naturalWidth, CANVAS_HEIGHT / img.naturalHeight);
+    const w = img.naturalWidth * k;
+    const h = img.naturalHeight * k;
+    ctx.drawImage(img, (CANVAS_WIDTH - w) / 2, (CANVAS_HEIGHT - h) / 2, w, h);
+  }
+
+  // Escribe un texto reduciendo la letra si no cabe en maxW
+  function fitText(text, x, y, px, maxW, family = '"Fredoka", sans-serif', weight = '') {
+    const w0 = weight ? weight + ' ' : '';
+    ctx.font = `${w0}${px}px ${family}`;
+    const w = ctx.measureText(text).width;
+    if (w > maxW) ctx.font = `${w0}${Math.max(8, Math.floor(px * maxW / w))}px ${family}`;
+    ctx.fillText(text, x, y);
+  }
+
   // Dibuja una imagen centrada en (cx, cy) ajustada a maxW x maxH sin deformarla
   function drawContained(img, cx, cy, maxW, maxH, scaleMul = 1) {
     const k = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight) * scaleMul;
@@ -1491,17 +1595,31 @@
   }
 
   function renderGameOver() {
+    const P = IS_PORTRAIT;
     ctx.save();
     ctx.fillStyle = 'rgba(6, 10, 8, 0.88)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     const animScale = Math.min(1.0, 0.5 + gameOverTimer * 2.2);
 
+    // Medidas: escritorio (posiciones fijas) o vertical (bloque centrado y más grande)
+    const gW0 = P ? CANVAS_WIDTH - 40 : 640;
+    const gH0 = gW0 * (274 / 640);
+    const winMaxW = P ? CANVAS_WIDTH - 40 : 560;
+    const winMaxH = P ? 300 : 200;
+    const btnBase = P ? 400 : 260;
+    const groupH = gH0 + 30 + winMaxH + 50 + 100;
+    const top = P ? (CANVAS_HEIGHT - groupH) / 2 : 110;
+    const cardY = P ? top + gH0 + 30 : 410;
+    const winCY = P ? cardY + winMaxH / 2 : cardY + 80;
+    const btnCY = P ? cardY + winMaxH + 50 + 45 : CANVAS_HEIGHT - 75;
+    const uiS = P ? 1.3 : 1; // texto más grande en celular
+
     if (assets.gameover) {
-      const gW = 640 * animScale;
-      const gH = 274 * animScale;
+      const gW = gW0 * animScale;
+      const gH = gH0 * animScale;
       const gX = (CANVAS_WIDTH - gW) / 2;
-      const gY = 110 + (1 - animScale) * 30;
+      const gY = top + (1 - animScale) * 30;
 
       ctx.save();
       ctx.shadowColor = 'rgba(255, 60, 40, 0.6)';
@@ -1510,17 +1628,16 @@
       ctx.restore();
     }
 
-    const cardY = 410;
     ctx.textAlign = 'center';
 
     if (assets.ventana) {
       // Ventana.png reemplaza el rectángulo; el texto se centra sobre ella
-      const cy = cardY + 80;
-      const win = drawContained(assets.ventana, CANVAS_WIDTH / 2, cy, 560, 200);
-      let f = Math.min(1, win.h / 200);            // reduce la letra si la ventana es baja
+      const cy = winCY;
+      const win = drawContained(assets.ventana, CANVAS_WIDTH / 2, cy, winMaxW, winMaxH);
+      let f = Math.min(P ? 1.35 : 1, win.h / 200);  // reduce la letra si la ventana es baja
       ctx.font = '18px "Fredoka", sans-serif';
       const headW = ctx.measureText('¡La Guacamaya chocó con un ave enemiga!').width;
-      f = Math.min(f, (win.w * 0.82) / headW);     // y si la ventana es angosta
+      f = Math.min(f, (win.w * 0.82) / headW);      // y si la ventana es angosta
 
       // Bloque de texto compacto, centrado en la ventana
       const headY = cy - 38 * f;       // título
@@ -1539,99 +1656,131 @@
       ctx.fillText(`⭐ Puntuación final: ${score}`, CANVAS_WIDTH / 2, line1 + lineH * 2);
       ctx.restore();
     } else {
+      const cardW = P ? CANVAS_WIDTH - 60 : 480;
+      const cardH = 160 * uiS;
       ctx.fillStyle = 'rgba(16, 32, 22, 0.92)';
       ctx.strokeStyle = 'rgba(255, 120, 80, 0.6)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.roundRect(CANVAS_WIDTH / 2 - 240, cardY, 480, 160, 16);
+      ctx.roundRect(CANVAS_WIDTH / 2 - cardW / 2, cardY, cardW, cardH, 16);
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = '18px "Fredoka", sans-serif';
       ctx.fillStyle = '#ff8080';
-      ctx.fillText('¡La Guacamaya chocó con un ave enemiga!', CANVAS_WIDTH / 2, cardY + 38);
-
-      ctx.font = '16px "Fredoka", sans-serif';
+      fitText('¡La Guacamaya chocó con un ave enemiga!', CANVAS_WIDTH / 2, cardY + 38 * uiS, 18 * uiS, cardW - 30);
       ctx.fillStyle = '#f0f7f2';
-      ctx.fillText(`🍉 Sandías recolectadas: ${fruitsCollected} / ${TARGET_FRUITS}`, CANVAS_WIDTH / 2, cardY + 76);
-      ctx.fillText(`🎯 Aves enemigas vencidas: ${enemiesDefeated}`, CANVAS_WIDTH / 2, cardY + 106);
-      ctx.fillText(`⭐ Puntuación final: ${score}`, CANVAS_WIDTH / 2, cardY + 136);
+      fitText(`🍉 Sandías recolectadas: ${fruitsCollected} / ${TARGET_FRUITS}`, CANVAS_WIDTH / 2, cardY + 76 * uiS, 16 * uiS, cardW - 30);
+      fitText(`🎯 Aves enemigas vencidas: ${enemiesDefeated}`, CANVAS_WIDTH / 2, cardY + 106 * uiS, 16 * uiS, cardW - 30);
+      fitText(`⭐ Puntuación final: ${score}`, CANVAS_WIDTH / 2, cardY + 136 * uiS, 16 * uiS, cardW - 30);
     }
 
     const pulse = Math.sin(globalTime * 6) * 0.05;
     if (assets.retry) {
       // Botón Reintentar.png (397x89) con ligera pulsación
-      const btnW = 260 * (1 + pulse);
+      const btnW = btnBase * (1 + pulse);
       const btnH = btnW * (assets.retry.naturalHeight / assets.retry.naturalWidth);
       const btnX = (CANVAS_WIDTH - btnW) / 2;
-      const btnY = CANVAS_HEIGHT - 75 - btnH / 2;
+      const btnY = btnCY - btnH / 2;
       ctx.save();
       ctx.shadowColor = 'rgba(255, 140, 60, 0.7)';
       ctx.shadowBlur = 18;
       ctx.drawImage(assets.retry, btnX, btnY, btnW, btnH);
       ctx.restore();
     } else {
-      ctx.font = `${Math.floor(16 * (1 + pulse))}px "Fredoka", sans-serif`;
       ctx.fillStyle = '#ffea79';
-      ctx.fillText('Presiona ESPACIO o haz CLIC para Reintentar', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 80);
+      fitText(P ? 'Toca la pantalla para reintentar' : 'Presiona ESPACIO o haz CLIC para Reintentar',
+        CANVAS_WIDTH / 2, btnCY, Math.floor(16 * uiS * (1 + pulse)), CANVAS_WIDTH - 40);
     }
     ctx.restore();
   }
 
   function renderVictory() {
+    const P = IS_PORTRAIT;
     ctx.fillStyle = 'rgba(6, 30, 16, 0.88)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     ctx.save();
     ctx.textAlign = 'center';
+
+    const uiS = P ? 1.25 : 1; // texto más grande en celular
+    const cardW = P ? CANVAS_WIDTH - 60 : 480;
+    const cardH = 220 * uiS;
+    const groupH = 260 + cardH + 90;
+    const top = P ? (CANVAS_HEIGHT - groupH) / 2 : 0;
+    const titleCY = P ? top + 110 : 160;
+    const cardY = P ? top + 260 : 285;
+    const restartY = P ? cardY + cardH + 70 : CANVAS_HEIGHT - 120;
+
     if (assets.winner) {
       // Winner.png reemplaza los textos "¡NIVEL COMPLETADO!" y "¡MISIÓN CUMPLIDA EN XCARET!"
       const bob = Math.sin(globalTime * 2.5) * 4; // leve flotación
       ctx.save();
       ctx.shadowColor = 'rgba(255, 225, 0, 0.55)';
       ctx.shadowBlur = 22;
-      drawContained(assets.winner, CANVAS_WIDTH / 2, 160 + bob, 640, 200);
+      drawContained(assets.winner, CANVAS_WIDTH / 2, titleCY + bob, P ? CANVAS_WIDTH - 40 : 640, P ? 240 : 200);
       ctx.restore();
     } else {
-      ctx.font = '24px "Press Start 2P", monospace';
       ctx.fillStyle = '#ffeb3b';
       ctx.shadowColor = '#ffe100';
       ctx.shadowBlur = 18;
-      ctx.fillText('¡NIVEL COMPLETADO!', CANVAS_WIDTH / 2, 190);
+      fitText('¡NIVEL COMPLETADO!', CANVAS_WIDTH / 2, titleCY + 30, 24, CANVAS_WIDTH - 40, '"Press Start 2P", monospace');
 
-      ctx.font = '26px "Fredoka", sans-serif';
       ctx.fillStyle = '#79f29d';
       ctx.shadowBlur = 0;
-      ctx.fillText('¡MISIÓN CUMPLIDA EN XCARET!', CANVAS_WIDTH / 2, 240);
+      fitText('¡MISIÓN CUMPLIDA EN XCARET!', CANVAS_WIDTH / 2, titleCY + 80, 26, CANVAS_WIDTH - 40);
     }
 
-    const cardY = 285;
     ctx.fillStyle = 'rgba(15, 45, 25, 0.92)';
     ctx.strokeStyle = '#4eaf72';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(CANVAS_WIDTH / 2 - 240, cardY, 480, 220, 18);
+    ctx.roundRect(CANVAS_WIDTH / 2 - cardW / 2, cardY, cardW, cardH, 18);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = '17px "Fredoka", sans-serif';
+    const maxW = cardW - 30;
     ctx.fillStyle = '#e8fbf0';
-    ctx.fillText('¡Has recolectado las 10 sandías y protegido la selva!', CANVAS_WIDTH / 2, cardY + 45);
+    fitText('¡Has recolectado las 10 sandías y protegido la selva!', CANVAS_WIDTH / 2, cardY + 45 * uiS, 17 * uiS, maxW);
 
-    ctx.font = '19px "Fredoka", sans-serif';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`🍉 Sandías totales: 10 / 10`, CANVAS_WIDTH / 2, cardY + 95);
-    ctx.fillText(`🎯 Aves enemigas derrotadas: ${enemiesDefeated}`, CANVAS_WIDTH / 2, cardY + 130);
-    ctx.font = 'bold 22px "Fredoka", sans-serif';
+    fitText(`🍉 Sandías totales: 10 / 10`, CANVAS_WIDTH / 2, cardY + 95 * uiS, 19 * uiS, maxW);
+    fitText(`🎯 Aves enemigas derrotadas: ${enemiesDefeated}`, CANVAS_WIDTH / 2, cardY + 130 * uiS, 19 * uiS, maxW);
     ctx.fillStyle = '#ffd700';
-    ctx.fillText(`⭐ Puntuación Total: ${score + 1000} PTS`, CANVAS_WIDTH / 2, cardY + 175);
+    fitText(`⭐ Puntuación Total: ${score + 1000} PTS`, CANVAS_WIDTH / 2, cardY + 175 * uiS, 22 * uiS, maxW, '"Fredoka", sans-serif', 'bold');
 
     const pulse = Math.sin(globalTime * 5) * 0.08;
-    ctx.font = `${Math.floor(17 * (1 + pulse))}px "Fredoka", sans-serif`;
     ctx.fillStyle = '#ffea79';
-    ctx.fillText('Presiona ESPACIO o haz CLIC para Jugar de Nuevo', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 120);
+    fitText(P ? 'Toca la pantalla para jugar de nuevo' : 'Presiona ESPACIO o haz CLIC para Jugar de Nuevo',
+      CANVAS_WIDTH / 2, restartY, Math.floor(17 * uiS * (1 + pulse)), CANVAS_WIDTH - 40);
     ctx.restore();
   }
+
+  // --- ADAPTACIÓN AUTOMÁTICA (computadora / celular vertical / celular horizontal) ---
+  function onLayoutChanged() {
+    bgTile = null; // el fondo se regenera con el nuevo ancho
+    bgY = 0;
+    touch.id = null;
+    mouse.shooting = false;
+    mouse.x = Math.max(50, Math.min(CANVAS_WIDTH - 50, mouse.x));
+    mouse.y = Math.max(140, Math.min(CANVAS_HEIGHT - 60, mouse.y));
+    player.x = Math.max(55, Math.min(CANVAS_WIDTH - 55, player.x));
+    player.y = Math.max(150, Math.min(CANVAS_HEIGHT - 65, player.y));
+    const clampX = v => Math.max(40, Math.min(CANVAS_WIDTH - 40, v));
+    [enemies, fruits].forEach(list => list.forEach(o => {
+      o.x = clampX(o.x);
+      if (o.baseX !== undefined) o.baseX = clampX(o.baseX);
+    }));
+  }
+
+  let layoutTimer = null;
+  function refreshLayout() {
+    if (computeLayout()) onLayoutChanged();
+  }
+  window.addEventListener('resize', refreshLayout);
+  window.addEventListener('orientationchange', () => {
+    clearTimeout(layoutTimer);
+    layoutTimer = setTimeout(refreshLayout, 300); // iOS tarda en reportar el tamaño nuevo
+  });
 
   // --- BUCLE DE ANIMACIÓN PRINCIPAL ---
   function gameLoop(now) {
